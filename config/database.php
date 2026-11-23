@@ -97,8 +97,7 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'require'), 
-            'options' => [
-    \PDO::ATTR_EMULATE_PREPARES => env('DB_EMULATE_PREPARES', false),
+            'options' => [\PDO::ATTR_EMULATE_PREPARES => env('DB_EMULATE_PREPARES', false),
 ],
         ],
 
