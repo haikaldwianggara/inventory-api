@@ -4,49 +4,31 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-/*
- * Vercel: filesystem read-only kecuali /tmp.
- * Arahkan semua cache/log/session Laravel ke /tmp atau ke driver yang tidak butuh disk.
- */
-$tmp = sys_get_temp_dir().'/inventory-laravel';
+require __DIR__.'/../vendor/autoload.php';
 
-$serverlessEnv = [
-    'APP_CONFIG_CACHE'   => $tmp.'/bootstrap/config.php',
-    'APP_EVENTS_CACHE'   => $tmp.'/bootstrap/events.php',
-    'APP_PACKAGES_CACHE' => $tmp.'/bootstrap/packages.php',
-    'APP_ROUTES_CACHE'   => $tmp.'/bootstrap/routes.php',
-    'APP_SERVICES_CACHE' => $tmp.'/bootstrap/services.php',
-    'VIEW_COMPILED_PATH' => $tmp.'/framework/views',
-    'LOG_CHANNEL'        => 'stderr',
-    'SESSION_DRIVER'     => 'array',
-    'CACHE_STORE'        => 'array',
-];
+$app = require __DIR__.'/../bootstrap/app.php';
 
-foreach ($serverlessEnv as $key => $value) {
-    // Jangan timpa jika sudah diset di Environment Variables Vercel
-    if (getenv($key) === false || getenv($key) === '') {
-        putenv("$key=$value");
-        $_ENV[$key] = $value;
-        $_SERVER[$key] = $value;
-    }
-}
+$storage = sys_get_temp_dir().'/inventory-laravel';
 
-foreach (['bootstrap', 'framework/cache/data', 'framework/sessions', 'framework/views', 'logs'] as $dir) {
-    $path = $tmp.'/'.$dir;
+foreach (['framework/cache/data', 'framework/sessions', 'framework/views'] as $dir) {
+    $path = $storage.'/'.$dir;
+
     if (! is_dir($path)) {
         mkdir($path, 0775, true);
     }
 }
 
-require __DIR__.'/../vendor/autoload.php';
+$app->useStoragePath($storage);
 
-$app = require __DIR__.'/../bootstrap/app.php';
+$request = Request::capture();
 
-$app->useStoragePath($tmp);
+header('Content-Type: application/json');
 
-// Supaya Laravel tidak menganggap "/api" sebagai folder skrip
-$_SERVER['SCRIPT_NAME'] = '/index.php';
-$_SERVER['PHP_SELF'] = '/index.php';
-$_SERVER['SCRIPT_FILENAME'] = __DIR__.'/../public/index.php';
-
-$app->handleRequest(Request::capture());
+echo json_encode([
+    'request_uri' => $_SERVER['REQUEST_URI'] ?? null,
+    'path_info' => $_SERVER['PATH_INFO'] ?? null,
+    'script_name' => $_SERVER['SCRIPT_NAME'] ?? null,
+    'php_self' => $_SERVER['PHP_SELF'] ?? null,
+    'laravel_path' => $request->path(),
+    'method' => $request->method(),
+]);
