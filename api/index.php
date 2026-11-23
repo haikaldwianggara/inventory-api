@@ -20,4 +20,13 @@ foreach (['framework/cache/data', 'framework/sessions', 'framework/views'] as $d
 
 $app->useStoragePath($storage);
 
+// Perbaikan URI untuk Vercel
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+
+if (! str_starts_with($requestUri, '/api/')) {
+    $_SERVER['REQUEST_URI'] = '/api'.(
+        str_starts_with($requestUri, '/') ? $requestUri : '/'.$requestUri
+    );
+}
+
 $app->handleRequest(Request::capture());
