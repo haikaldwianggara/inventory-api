@@ -20,18 +20,11 @@ foreach (['framework/cache/data', 'framework/sessions', 'framework/views'] as $d
 
 $app->useStoragePath($storage);
 
-// Debug request dari Vercel
-$request = Request::capture();
+// Mengambil path yang diteruskan oleh Vercel
+$route = $_GET['route'] ?? '/';
 
-header('Content-Type: application/json');
+// Mengatur ulang URI agar Laravel dapat membaca route
+$_SERVER['REQUEST_URI'] = $route;
+$_SERVER['PATH_INFO'] = $route;
 
-echo json_encode([
-    'request_uri' => $_SERVER['REQUEST_URI'] ?? null,
-    'path_info' => $_SERVER['PATH_INFO'] ?? null,
-    'script_name' => $_SERVER['SCRIPT_NAME'] ?? null,
-    'laravel_path' => $request->path(),
-    'laravel_url' => $request->url(),
-    'method' => $request->method(),
-], JSON_PRETTY_PRINT);
-
-exit;
+$app->handleRequest(Request::capture());
