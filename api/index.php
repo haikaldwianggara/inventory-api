@@ -20,11 +20,4 @@ foreach (['framework/cache/data', 'framework/sessions', 'framework/views'] as $d
 
 $app->useStoragePath($storage);
 
-// Mengambil path yang diteruskan oleh Vercel
-$route = $_GET['route'] ?? '/';
-
-// Mengatur ulang URI agar Laravel dapat membaca route
-$_SERVER['REQUEST_URI'] = $route;
-$_SERVER['PATH_INFO'] = $route;
-
 $app->handleRequest(Request::capture());
