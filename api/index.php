@@ -20,13 +20,18 @@ foreach (['framework/cache/data', 'framework/sessions', 'framework/views'] as $d
 
 $app->useStoragePath($storage);
 
-// Perbaikan URI untuk Vercel
-$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+// Debug request dari Vercel
+$request = Request::capture();
 
-if (! str_starts_with($requestUri, '/api/')) {
-    $_SERVER['REQUEST_URI'] = '/api'.(
-        str_starts_with($requestUri, '/') ? $requestUri : '/'.$requestUri
-    );
-}
+header('Content-Type: application/json');
 
-$app->handleRequest(Request::capture());
+echo json_encode([
+    'request_uri' => $_SERVER['REQUEST_URI'] ?? null,
+    'path_info' => $_SERVER['PATH_INFO'] ?? null,
+    'script_name' => $_SERVER['SCRIPT_NAME'] ?? null,
+    'laravel_path' => $request->path(),
+    'laravel_url' => $request->url(),
+    'method' => $request->method(),
+], JSON_PRETTY_PRINT);
+
+exit;
