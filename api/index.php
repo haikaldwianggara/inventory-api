@@ -4,31 +4,88 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-require __DIR__.'/../vendor/autoload.php';
+/*
+|--------------------------------------------------------------------------
+| Vercel Serverless Configuration
+|--------------------------------------------------------------------------
+| Vercel filesystem read-only kecuali /tmp.
+| Cache, session, dan view diarahkan ke /tmp.
+*/
 
-$app = require __DIR__.'/../bootstrap/app.php';
+$tmp = sys_get_temp_dir() . '/inventory-laravel';
 
-$storage = sys_get_temp_dir().'/inventory-laravel';
+$serverlessEnv = [
+    'APP_CONFIG_CACHE'   => $tmp . '/bootstrap/config.php',
+    'APP_EVENTS_CACHE'   => $tmp . '/bootstrap/events.php',
+    'APP_PACKAGES_CACHE' => $tmp . '/bootstrap/packages.php',
+    'APP_ROUTES_CACHE'   => $tmp . '/bootstrap/routes.php',
+    'APP_SERVICES_CACHE' => $tmp . '/bootstrap/services.php',
+    'VIEW_COMPILED_PATH' => $tmp . '/framework/views',
+    'LOG_CHANNEL'        => 'stderr',
+    'SESSION_DRIVER'     => 'array',
+    'CACHE_STORE'        => 'array',
+];
 
-foreach (['framework/cache/data', 'framework/sessions', 'framework/views'] as $dir) {
-    $path = $storage.'/'.$dir;
+foreach ($serverlessEnv as $key => $value) {
+    if (getenv($key) === false || getenv($key) === '') {
+        putenv("$key=$value");
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+}
 
-    if (! is_dir($path)) {
+/*
+|--------------------------------------------------------------------------
+| Create Temporary Directories
+|--------------------------------------------------------------------------
+*/
+
+foreach ([
+    'bootstrap',
+    'framework/cache/data',
+    'framework/sessions',
+    'framework/views',
+    'logs',
+] as $dir) {
+    $path = $tmp . '/' . $dir;
+
+    if (!is_dir($path)) {
         mkdir($path, 0775, true);
     }
 }
 
-$app->useStoragePath($storage);
+/*
+|--------------------------------------------------------------------------
+| Load Laravel
+|--------------------------------------------------------------------------
+*/
 
-$request = Request::capture();
+require __DIR__ . '/../vendor/autoload.php';
 
-header('Content-Type: application/json');
+$app = require __DIR__ . '/../bootstrap/app.php';
 
-echo json_encode([
-    'request_uri' => $_SERVER['REQUEST_URI'] ?? null,
-    'path_info' => $_SERVER['PATH_INFO'] ?? null,
-    'script_name' => $_SERVER['SCRIPT_NAME'] ?? null,
-    'php_self' => $_SERVER['PHP_SELF'] ?? null,
-    'laravel_path' => $request->path(),
-    'method' => $request->method(),
-]);
+/*
+|--------------------------------------------------------------------------
+| Set Storage Path
+|--------------------------------------------------------------------------
+*/
+
+$app->useStoragePath($tmp);
+
+/*
+|--------------------------------------------------------------------------
+| Fix Server Variables for Vercel
+|--------------------------------------------------------------------------
+*/
+
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+$_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../public/index.php';
+
+/*
+|--------------------------------------------------------------------------
+| Handle Request
+|--------------------------------------------------------------------------
+*/
+
+$app->handleRequest(Request::capture());
